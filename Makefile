@@ -1,11 +1,12 @@
 # WARNING: if you are on windows, you need to have g++ installed with MinGW
 
 CXX = g++
-CXXFLAGS += -I./include -nostdinc
+CXXFLAGS += -I./include
 # CXXFLAGS += -v
 LDFLAGS += -L./lib -nostdlib
 
-SRC = main.cpp
+# Automatically find all .cpp files in the src/ directory
+SRC = $(wildcard src/*.cpp)
 OUT = simple_bezier
 EXT =
 
@@ -24,7 +25,7 @@ endif
 
 # Build target
 $(OUT)$(EXT): $(SRC)
-	$(CXX) $(SRC) -o $(OUT)$(EXT) $(INCLUDES) $(LIBS)
+	$(CXX) $(SRC) -o $(OUT)$(EXT) $(CXXFLAGS) $(LIBS)
 
 # Clean target
 clean:

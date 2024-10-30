@@ -1,0 +1,5 @@
+#pragma once
+
+#define DOT_COLOR DARKGREEN
+#define POINT_COLOR_ALT DARKBROWN
+#define POINT_COLOR BROWN
