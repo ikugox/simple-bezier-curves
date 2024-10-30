@@ -1,97 +1,109 @@
-#include "raylib.h"
 #include <vector>
+
+#include "raylib.h"
 /* --------------------------- LEFT CLICK TO MOVE --------------------------- */
 /* ---------------------- RIGHT CLICK TO CREATE/DELETE ---------------------- */
-constexpr float ballSize = 20;
-constexpr float dotFrequency = 0.002;
-constexpr float dotThickness = 3;
-constexpr Color dotColor = DARKGREEN;
+constexpr float BALL_SIZE = 20;
+constexpr float DOT_FREQUENCY = 0.002;
+constexpr float DOT_THICKNESS = 3;
+constexpr Color DOT_COLOR = DARKGREEN;
+constexpr int SCREEN_SIZE = 800;
 
-void mouseMovement(std::vector<Vector2> &points);
+void handleExistingPoint(std::vector<Vector2>& points, int pSize);
+void handleNewPoint(std::vector<Vector2>& points, const Vector2& mousePos,
+                    int pSize);
 
+void mouseMovement(std::vector<Vector2>& points);
 
-Vector2 lerp(Vector2 &a, Vector2 &b, float t) {
+Vector2 lerp(const Vector2& a, const Vector2& b, float t) {
     return Vector2{a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t};
 }
-Vector2 quadCurve(Vector2 &a, Vector2 &b, Vector2 &c, float t) {
-    Vector2 startPos = lerp(a, b, t);
-    Vector2 endPos = lerp(b, c, t);
-    return lerp(startPos, endPos, t);
+
+// Recursive function for Bezier interpolation with any number of points
+Vector2 bezierCurve(const std::vector<Vector2>& points, float t) {
+    // Base case: if there's only one point, return it
+    if (points.size() == 1) {
+        return points[0];
+    }
+
+    // Interpolate between each consecutive pair of points
+    std::vector<Vector2> nextPoints;
+    for (int i = 0; i < points.size() - 1; ++i) {
+        nextPoints.push_back(lerp(points[i], points[i + 1], t));
+    }
+
+    // Recurse with the reduced set of points
+    return bezierCurve(nextPoints, t);
 }
 
-Vector2 cubeCurve(Vector2 &a, Vector2 &b, Vector2 &c, Vector2 &d, float t) {
-    Vector2 startPos = quadCurve(a, b, c, t);
-    Vector2 endPos = quadCurve(b, c, d, t);
-    return lerp(startPos, endPos, t);
+void handleMouseClick(std::vector<Vector2>& points, const Vector2& mousePos,
+                      bool exists) {
+    const int pSize = points.size();
+
+    if (exists) {
+        handleExistingPoint(points, pSize);
+    } else {
+        handleNewPoint(points, mousePos, pSize);
+    }
 }
 
-Vector2 fourthCurve(Vector2 &a, Vector2 &b, Vector2 &c, Vector2 &d,
-                    Vector2 &e, float t) {
-    Vector2 startPos = cubeCurve(a, b, c, d, t);
-    Vector2 endPos = cubeCurve(b, c, d, e, t);
-    return lerp(startPos, endPos, t);
+void handleExistingPoint(std::vector<Vector2>& points, int pSize) {
+    if (pSize >= 2) {
+        points[pSize - 1] = points[pSize - 2];
+    }
+    points.pop_back();
 }
-//too lazy to write the rest...
-//too lazy to think of a veradict template solution...
 
-int main(void)
-{
-    const int screenSize = 800;
-    InitWindow(screenSize, screenSize, "WINDOW");
-    // SetTargetFPS(60);
+void handleNewPoint(std::vector<Vector2>& points, const Vector2& mousePos,
+                    int pSize) {
+    if (pSize == 0) {
+        points.push_back(mousePos);
+    } else {
+        points.push_back(points[pSize - 1]);
+        points[pSize - 1] =
+            mousePos;  // Update the last point to the new mouse position
+    }
+}
 
-    Vector2 mousePos;
+int main(void) {
+    InitWindow(SCREEN_SIZE, SCREEN_SIZE, "WINDOW");
+    SetTargetFPS(60);
+
     std::vector<Vector2> points;
-    
-    while (!WindowShouldClose())
-    {
+
+    while (!WindowShouldClose()) {
         if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
             Vector2 mousePos = GetMousePosition();
-            bool found = false;
-            for (int i = 0; i < points.size(); i++) {
-                if (CheckCollisionPointCircle(mousePos, points[i], ballSize))
-                    found = true;
-                if (found)
-                    points[i] = points[i+1];
+            bool exists = false;
+            const int pSize = points.size();
+            for (int i = 0; i < pSize; i++) {
+                if (CheckCollisionPointCircle(mousePos, points[i], BALL_SIZE))
+                    exists = true;
+                if (exists) points[i] = points[i + 1];
             }
-            if (found)
-                points.pop_back();
-            else
-                points.push_back(mousePos);
+            handleMouseClick(points, mousePos, exists);
         }
+
+        // if (IsKeyPressed(KEY_S)) {
+        //     TakeScreenshot("./ss.png");
+        // }
 
         BeginDrawing();
 
         ClearBackground(BEIGE);
-        DrawFPS(screenSize - 30, 5);
+        DrawFPS(SCREEN_SIZE - 30, 5);
         mouseMovement(points);
 
         for (int i = 0; i < points.size(); i++) {
-            Color c = i < 2 ? DARKBROWN : BROWN;
-            DrawCircleV(points[i], ballSize, c);
+            Color c = BROWN;
+            if (i == 0 || i == points.size() - 1) c = DARKBROWN;
+            DrawCircleV(points[i], BALL_SIZE, c);
         }
-    
-        switch (points.size()) {
-        case 2:
-            for (float i = 0; i <= 1; i+= dotFrequency)
-                DrawCircleV(lerp(points[0], points[1], i),
-                            dotThickness, dotColor);
-            break;
-        case 3:
-            for (float i = 0; i <= 1; i+= dotFrequency)
-                DrawCircleV(quadCurve(points[0], points[2], points[1], i),
-                            dotThickness, dotColor);
-            break;
-        case 4:
-            for (float i = 0; i <= 1; i+= dotFrequency)
-                DrawCircleV(cubeCurve(points[0], points[2], points[3],
-                            points[1], i), dotThickness, dotColor);
-            break;
-        case 5:
-            for (float i = 0; i <= 1; i+= dotFrequency)
-                DrawCircleV(fourthCurve(points[0], points[2], points[3],
-                            points[4], points[1], i), dotThickness, dotColor);
-            break;
+
+        if (points.size() > 1) {
+            for (float t = 0; t <= 1; t += DOT_FREQUENCY) {
+                DrawCircleV(bezierCurve(points, t), DOT_THICKNESS, DOT_COLOR);
+            }
         }
 
         EndDrawing();
@@ -101,21 +113,19 @@ int main(void)
     return 0;
 }
 
-void mouseMovement(std::vector<Vector2> &points) {
+void mouseMovement(std::vector<Vector2>& points) {
     Vector2 mousePos = GetMousePosition();
     static int currentlyMoving;
-    
+
     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-        if (currentlyMoving == -1) 
-            for (int i = 0; i < points.size(); i++) 
-                if (CheckCollisionPointCircle(mousePos, points[i], ballSize)) {
+        if (currentlyMoving == -1)
+            for (int i = 0; i < points.size(); i++)
+                if (CheckCollisionPointCircle(mousePos, points[i], BALL_SIZE)) {
                     currentlyMoving = i;
                     break;
                 }
-        if (currentlyMoving != -1)
-            points[currentlyMoving] = mousePos;
-    }
-    else {
+        if (currentlyMoving != -1) points[currentlyMoving] = mousePos;
+    } else {
         currentlyMoving = -1;
     }
 }
