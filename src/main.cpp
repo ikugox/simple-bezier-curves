@@ -16,6 +16,8 @@ void drawCurve(std::vector<Vector2> &points);
 Vector2 bezierCurve(const std::vector<Vector2> &points, float t);
 
 int main(void) {
+    // optional antialiasing
+    // SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(SCREEN_SIZE, SCREEN_SIZE, "Simple Bezier Curves");
     SetTargetFPS(60);
 
